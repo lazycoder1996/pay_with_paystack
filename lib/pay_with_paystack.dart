@@ -26,41 +26,46 @@ class PayWithPayStack {
     required String reference,
 
     /// callBack URL to handle redirection
-    required String callbackUrl,
+    String? callbackUrl,
 
     /// Currency of the transaction
-    required String currency,
+    String? currency,
 
     /// Amount you want to charge the user
     required double amount,
 
     /// What happens next after transaction is completed
-    required Function() transactionCompleted,
+    Function()? transactionCompleted,
 
     /// What happens next after transaction is not completed
-    required Function() transactionNotCompleted,
+    Function()? transactionNotCompleted,
 
     /// Extra data not consumed by Paystack but for developer purposes
     Object? metaData,
 
     /// Payment Channels you want to make available to the user
     Object? paymentChannel,
+
+    /// Plan ID for subscriptions
+    String? plan,
   }) {
     return Navigator.push(
       context,
       MaterialPageRoute(
-          builder: (context) => PaystackPayNow(
-                secretKey: secretKey,
-                email: customerEmail,
-                reference: reference,
-                currency: currency,
-                amount: amount,
-                paymentChannel: paymentChannel,
-                metadata: metaData,
-                transactionCompleted: transactionCompleted,
-                transactionNotCompleted: transactionNotCompleted,
-                callbackUrl: callbackUrl,
-              )),
+        builder: (context) => PaystackPayNow(
+          secretKey: secretKey,
+          email: customerEmail,
+          reference: reference,
+          currency: currency,
+          amount: amount,
+          paymentChannel: paymentChannel,
+          plan: plan,
+          metadata: metaData,
+          transactionCompleted: transactionCompleted,
+          transactionNotCompleted: transactionNotCompleted,
+          callbackUrl: callbackUrl,
+        ),
+      ),
     );
   }
 }

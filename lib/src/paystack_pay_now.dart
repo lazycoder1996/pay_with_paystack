@@ -9,26 +9,26 @@ import 'package:webview_flutter/webview_flutter.dart';
 class PaystackPayNow extends StatefulWidget {
   final String secretKey;
   final String reference;
-  final String callbackUrl;
-  final String currency;
+  final String? callbackUrl;
+  final String? currency;
   final String email;
   final double amount;
   final String? plan;
   final metadata;
   final paymentChannel;
-  final void Function() transactionCompleted;
-  final void Function() transactionNotCompleted;
+  final void Function()? transactionCompleted;
+  final void Function()? transactionNotCompleted;
 
   const PaystackPayNow({
     Key? key,
     required this.secretKey,
     required this.email,
     required this.reference,
-    required this.currency,
+     this.currency = 'USD',
     required this.amount,
-    required this.callbackUrl,
-    required this.transactionCompleted,
-    required this.transactionNotCompleted,
+     this.callbackUrl,
+     this.transactionCompleted,
+     this.transactionNotCompleted,
     this.metadata,
     this.plan,
     this.paymentChannel,
@@ -111,13 +111,13 @@ class _PaystackPayNowState extends State<PaystackPayNow> {
       var decodedRespBody = jsonDecode(response.body);
       if (decodedRespBody["data"]["gateway_response"] == "Approved" ||
           decodedRespBody["data"]["gateway_response"] == "Successful") {
-        widget.transactionCompleted();
+        widget.transactionCompleted?.call();
       } else {
-        widget.transactionNotCompleted();
+        widget.transactionNotCompleted?.call();
       }
     } else {
       /// Anything else means there is an issue
-      widget.transactionNotCompleted();
+      widget.transactionNotCompleted?.call();
       throw Exception(
           "Response Code: ${response.statusCode}, Response Body${response.body}");
     }
@@ -150,7 +150,7 @@ class _PaystackPayNowState extends State<PaystackPayNow> {
                           Navigator.of(context).pop();
                         });
                       }
-                      if (request.url.contains(widget.callbackUrl)) {
+                      if (request.url.contains(widget.callbackUrl ?? '')) {
                         await _checkTransactionStatus(snapshot.data!.reference)
                             .then((value) {
                           Navigator.of(context).pop();
