@@ -4,6 +4,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:pay_with_paystack/model/payment_data.dart';
+import 'package:pay_with_paystack/model/paystack_request_response.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class PaystackPayNow extends StatefulWidget {
@@ -16,19 +18,19 @@ class PaystackPayNow extends StatefulWidget {
   final String? plan;
   final metadata;
   final paymentChannel;
-  final void Function()? transactionCompleted;
-  final void Function()? transactionNotCompleted;
+  final void Function(PaymentData data)? transactionCompleted;
+  final void Function(String reason)? transactionNotCompleted;
 
   const PaystackPayNow({
     Key? key,
     required this.secretKey,
     required this.email,
     required this.reference,
-     this.currency = 'USD',
+    this.currency = 'USD',
     required this.amount,
-     this.callbackUrl,
-     this.transactionCompleted,
-     this.transactionNotCompleted,
+    this.callbackUrl,
+    this.transactionCompleted,
+    this.transactionNotCompleted,
     this.metadata,
     this.plan,
     this.paymentChannel,
@@ -109,15 +111,16 @@ class _PaystackPayNowState extends State<PaystackPayNow> {
     }
     if (response!.statusCode == 200) {
       var decodedRespBody = jsonDecode(response.body);
-      if (decodedRespBody["data"]["gateway_response"] == "Approved" ||
-          decodedRespBody["data"]["gateway_response"] == "Successful") {
-        widget.transactionCompleted?.call();
+      // print(decodedRespBody.toString());
+      if (decodedRespBody["data"]["status"] == "success") {
+        final data = PaymentData.fromJson(decodedRespBody["data"]);
+        widget.transactionCompleted?.call(data);
       } else {
-        widget.transactionNotCompleted?.call();
+        widget.transactionNotCompleted
+            ?.call(decodedRespBody["data"]["status"].toString());
       }
     } else {
       /// Anything else means there is an issue
-      widget.transactionNotCompleted?.call();
       throw Exception(
           "Response Code: ${response.statusCode}, Response Body${response.body}");
     }
@@ -125,90 +128,75 @@ class _PaystackPayNowState extends State<PaystackPayNow> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: FutureBuilder<PaystackRequestResponse>(
-          future: _makePaymentRequest(),
-          builder: (context, AsyncSnapshot<PaystackRequestResponse> snapshot) {
-            /// Show screen if snapshot has data and status is true.
-            if (snapshot.hasData && snapshot.data!.status == true) {
-              final controller = WebViewController()
-                ..setJavaScriptMode(JavaScriptMode.unrestricted)
-                ..setUserAgent("Flutter;Webview")
-                ..setNavigationDelegate(
-                  NavigationDelegate(
-                    onNavigationRequest: (request) async {
-                      if (request.url.contains('cancelurl.com')) {
-                        await _checkTransactionStatus(snapshot.data!.reference)
-                            .then((value) {
-                          Navigator.of(context).pop();
-                        });
-                      }
-                      if (request.url.contains('paystack.co/close')) {
-                        await _checkTransactionStatus(snapshot.data!.reference)
-                            .then((value) {
-                          Navigator.of(context).pop();
-                        });
-                      }
-                      if (request.url.contains(widget.callbackUrl ?? '')) {
-                        await _checkTransactionStatus(snapshot.data!.reference)
-                            .then((value) {
-                          Navigator.of(context).pop();
-                        });
-                      }
-                      return NavigationDecision.navigate;
-                    },
-                  ),
-                )
-                ..loadRequest(Uri.parse(snapshot.data!.authUrl));
-              return WebViewWidget(
-                controller: controller,
-                // initialUrl: snapshot.data!.authUrl,
-                // javascriptMode: JavascriptMode.unrestricted,
-                // navigationDelegate: (navigation) async {
-                //   if (navigation.url == 'https://standard.paystack.co/close') {
-                //     /// Check transaction status before closing the view back to the previous screen.
-                //     await _checkTransactionStatus(snapshot.data!.reference)
-                //         .then((value) {
-                //       return Navigator.of(context).pop();
-                //     });
-                //   }
-                //   return NavigationDecision.navigate;
-                // },
-              );
-            }
-
-            if (snapshot.hasError) {
-              return Material(
-                child: Center(
-                  child: Text('${snapshot.error}'),
+    return PopScope(
+      canPop: false,
+      child: FutureBuilder<PaystackRequestResponse>(
+        future: _makePaymentRequest(),
+        builder: (context, AsyncSnapshot<PaystackRequestResponse> snapshot) {
+          /// Show screen if snapshot has data and status is true.
+          if (snapshot.hasData && snapshot.data!.status == true) {
+            final controller = WebViewController()
+              ..setJavaScriptMode(JavaScriptMode.unrestricted)
+              // ..setUserAgent("Flutter;Webview")
+              ..setNavigationDelegate(
+                NavigationDelegate(
+                  onNavigationRequest: (request) async {
+                    if (request.url.contains('cancelurl.com')) {
+                      await _checkTransactionStatus(snapshot.data!.reference)
+                          .then((value) {
+                        Navigator.of(context).pop();
+                      });
+                    }
+                    if (request.url.contains('paystack.co/close')) {
+                      await _checkTransactionStatus(snapshot.data!.reference)
+                          .then((value) {
+                        Navigator.of(context).pop();
+                      });
+                    }
+                    if (request.url.contains(widget.callbackUrl ?? '')) {
+                      await _checkTransactionStatus(snapshot.data!.reference)
+                          .then((value) {
+                        Navigator.of(context).pop();
+                      });
+                    }
+                    return NavigationDecision.navigate;
+                  },
                 ),
-              );
-            }
-
-            return const Center(
-              child: CircularProgressIndicator(),
+              )
+              ..loadRequest(Uri.parse(snapshot.data!.authUrl));
+            return Scaffold(
+              appBar: AppBar(
+                automaticallyImplyLeading: false,
+                actions: [
+                  InkWell(
+                      onTap: () async {
+                        await _checkTransactionStatus(snapshot.data!.reference)
+                            .then((value) {
+                          Navigator.of(context).pop();
+                        });
+                      },
+                      child: const Icon(Icons.close)),
+                ],
+              ),
+              body: WebViewWidget(
+                controller: controller,
+              ),
             );
-          },
-        ),
+          }
+
+          if (snapshot.hasError) {
+            return Material(
+              child: Center(
+                child: Text('${snapshot.error}'),
+              ),
+            );
+          }
+
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        },
       ),
-    );
-  }
-}
-
-class PaystackRequestResponse {
-  final bool status;
-  final String authUrl;
-  final String reference;
-
-  const PaystackRequestResponse(
-      {required this.authUrl, required this.status, required this.reference});
-
-  factory PaystackRequestResponse.fromJson(Map<String, dynamic> json) {
-    return PaystackRequestResponse(
-      status: json['status'],
-      authUrl: json['data']["authorization_url"],
-      reference: json['data']["reference"],
     );
   }
 }
