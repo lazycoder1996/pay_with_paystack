@@ -52,4 +52,9 @@ class Authorization {
       'mobile_money_number': mobileMoneyNumber,
     };
   }
+
+  @override
+  String toString() {
+    return 'Authorization(authorizationCode: $authorizationCode, bin: $bin, last4: $last4, channel: $channel, cardType: $cardType, bank: $bank, countryCode: $countryCode, brand: $brand, accountName: $accountName, mobileMoneyNumber: $mobileMoneyNumber)';
+  }
 }

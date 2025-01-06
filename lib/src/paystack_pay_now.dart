@@ -128,75 +128,72 @@ class _PaystackPayNowState extends State<PaystackPayNow> {
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      child: FutureBuilder<PaystackRequestResponse>(
-        future: _makePaymentRequest(),
-        builder: (context, AsyncSnapshot<PaystackRequestResponse> snapshot) {
-          /// Show screen if snapshot has data and status is true.
-          if (snapshot.hasData && snapshot.data!.status == true) {
-            final controller = WebViewController()
-              ..setJavaScriptMode(JavaScriptMode.unrestricted)
-              // ..setUserAgent("Flutter;Webview")
-              ..setNavigationDelegate(
-                NavigationDelegate(
-                  onNavigationRequest: (request) async {
-                    if (request.url.contains('cancelurl.com')) {
+    return FutureBuilder<PaystackRequestResponse>(
+      future: _makePaymentRequest(),
+      builder: (context, AsyncSnapshot<PaystackRequestResponse> snapshot) {
+        /// Show screen if snapshot has data and status is true.
+        if (snapshot.hasData && snapshot.data!.status == true) {
+          final controller = WebViewController()
+            ..setJavaScriptMode(JavaScriptMode.unrestricted)
+            // ..setUserAgent("Flutter;Webview")
+            ..setNavigationDelegate(
+              NavigationDelegate(
+                onNavigationRequest: (request) async {
+                  if (request.url.contains('cancelurl.com')) {
+                    await _checkTransactionStatus(snapshot.data!.reference)
+                        .then((value) {
+                      Navigator.of(context).pop();
+                    });
+                  }
+                  if (request.url.contains('paystack.co/close')) {
+                    await _checkTransactionStatus(snapshot.data!.reference)
+                        .then((value) {
+                      Navigator.of(context).pop();
+                    });
+                  }
+                  if (request.url.contains(widget.callbackUrl ?? '')) {
+                    await _checkTransactionStatus(snapshot.data!.reference)
+                        .then((value) {
+                      Navigator.of(context).pop();
+                    });
+                  }
+                  return NavigationDecision.navigate;
+                },
+              ),
+            )
+            ..loadRequest(Uri.parse(snapshot.data!.authUrl));
+          return Scaffold(
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              actions: [
+                InkWell(
+                    onTap: () async {
                       await _checkTransactionStatus(snapshot.data!.reference)
                           .then((value) {
                         Navigator.of(context).pop();
                       });
-                    }
-                    if (request.url.contains('paystack.co/close')) {
-                      await _checkTransactionStatus(snapshot.data!.reference)
-                          .then((value) {
-                        Navigator.of(context).pop();
-                      });
-                    }
-                    if (request.url.contains(widget.callbackUrl ?? '')) {
-                      await _checkTransactionStatus(snapshot.data!.reference)
-                          .then((value) {
-                        Navigator.of(context).pop();
-                      });
-                    }
-                    return NavigationDecision.navigate;
-                  },
-                ),
-              )
-              ..loadRequest(Uri.parse(snapshot.data!.authUrl));
-            return Scaffold(
-              appBar: AppBar(
-                automaticallyImplyLeading: false,
-                actions: [
-                  InkWell(
-                      onTap: () async {
-                        await _checkTransactionStatus(snapshot.data!.reference)
-                            .then((value) {
-                          Navigator.of(context).pop();
-                        });
-                      },
-                      child: const Icon(Icons.close)),
-                ],
-              ),
-              body: WebViewWidget(
-                controller: controller,
-              ),
-            );
-          }
-
-          if (snapshot.hasError) {
-            return Material(
-              child: Center(
-                child: Text('${snapshot.error}'),
-              ),
-            );
-          }
-
-          return const Center(
-            child: CircularProgressIndicator(),
+                    },
+                    child: const Icon(Icons.close)),
+              ],
+            ),
+            body: WebViewWidget(
+              controller: controller,
+            ),
           );
-        },
-      ),
+        }
+    
+        if (snapshot.hasError) {
+          return Material(
+            child: Center(
+              child: Text('${snapshot.error}'),
+            ),
+          );
+        }
+    
+        return const Center(
+          child: CircularProgressIndicator(),
+        );
+      },
     );
   }
 }
